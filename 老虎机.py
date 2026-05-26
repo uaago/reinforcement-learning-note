@@ -50,14 +50,14 @@ class Solver():
 
 class EpsilonGreeedy(Solver):
     #epsilon-greedy算法,继承Solver类
-    def __init__(self,bandit,epslon=0.1,init_prob=1.0):
+    def __init__(self,bandit,epsilon=0.1,init_prob=1.0):
         super(EpsilonGreeedy,self).__init__(bandit)#等价于Solver.__init__(self,bandit)
-        self.epslon=epslon
+        self.epsilon=epsilon
         #初始化拉动所有拉杆的期望奖励估值
         self.estimates=np.array([init_prob]*self.bandit.k)#因为初始化了父类，此时的self也拥有了bandit属性，所以可以直接访问self.bandit.k
 
     def run_one_step(self):
-        if np.random.rand()<self.epslon:
+        if np.random.rand()<self.epsilon:
             k=np.random.choice(self.bandit.k)
             #或者 k=np.random.randinit(self.bandit.k) 
         else:#以1-epslon的概率选择当前期望奖励估值最高的拉杆
@@ -67,17 +67,32 @@ class EpsilonGreeedy(Solver):
         self.estimates[k]+=1./(self.counts[k]+1)*(r-self.estimates[k])#增量式更新期望奖励估值
         return k
 
-def plot_results(solvers,solver_names):
+def plot_results(solvers,solver_names):#用来画多个解释器
     for idx,solver in enumerate(solvers):
         time_list=range(len(solver.regrets))
         plt.plot(time_list,solver.regrets,label=solver_names[idx])
 
     plt.xlabel('time step')
-    plt.ylabel('cuulative regrets')
+    plt.ylabel('culative regrets')
     plt.legend()
     plt.show()
-· 
-ep_greedy_solver=EpsilonGreeedy(bandit1,epslon=0.01)
+
+ep_greedy_solver=EpsilonGreeedy(bandit1,epsilon=0.01)
 ep_greedy_solver.run(5000)
 print("total regrets " , ep_greedy_solver.regret)
 plot_results([ep_greedy_solver],['ep_greedy'])
+'''
+#画出不同epsilon下的结果
+np.random.seed(0)
+epsilons=[1e-4,0.01,0.1,0.25,0.5]
+epsilon_greedy_solver_list=[EpsilonGreeedy(bandit1,epsilon=e) for e in epsilons]
+names=["epsilon={}".format(e) for e in epsilons]
+for solver in epsilon_greedy_solver_list:
+    solver.run(5000)
+
+plot_results(epsilon_greedy_solver_list,names)
+'''
+class DecayingEpsilonGREedy(Solver):
+    """ 随着时间双键的epsilon贪婪算法，继承Solver类"""
+    def __init__(self,bandit,init_prob=1.0):
+      super(DecayingEpsilonGREedy,self).__init__(bandit)
