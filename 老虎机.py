@@ -16,6 +16,7 @@ class bernulliBandit():
 np.random.seed(0)
 k=10
 bandit1=bernulliBandit(k)
+print("最优拉杆的位置是%d号,获奖概率为:%.4f" % (bandit1.best_id,bandit1.best_prob))
 '''
 print("随机生成了一个%d臂伯努利老虎机"%k)
 print("每个拉杆的获奖概率分别为：",bandit1.probs)
@@ -51,7 +52,7 @@ class Solver():
 class EpsilonGreeedy(Solver):
     #epsilon-greedy算法,继承Solver类
     def __init__(self,bandit,epsilon=0.1,init_prob=1.0):
-        super(EpsilonGreeedy,self).__init__(bandit)#等价于Solver.__init__(self,bandit)
+        super().__init__(bandit)#等价于Solver.__init__(self,bandit)
         self.epsilon=epsilon
         #初始化拉动所有拉杆的期望奖励估值
         self.estimates=np.array([init_prob]*self.bandit.k)#因为初始化了父类，此时的self也拥有了bandit属性，所以可以直接访问self.bandit.k
@@ -65,7 +66,7 @@ class EpsilonGreeedy(Solver):
         r=self.bandit.step(k)#执行动作，获得奖励
         #更新期望奖励估值
         self.estimates[k]+=1./(self.counts[k]+1)*(r-self.estimates[k])#增量式更新期望奖励估值
-        return k
+        return k#注意这个r-self.estimates[k]可能为负，相当于不断逼近更真实的估计值（对k号来说）
 
 def plot_results(solvers,solver_names):#用来画多个解释器
     for idx,solver in enumerate(solvers):
@@ -80,9 +81,12 @@ def plot_results(solvers,solver_names):#用来画多个解释器
 ep_greedy_solver=EpsilonGreeedy(bandit1,epsilon=0.01)
 ep_greedy_solver.run(5000)
 print("total regrets " , ep_greedy_solver.regret)
+print(ep_greedy_solver.actions)
 plot_results([ep_greedy_solver],['ep_greedy'])
+
 '''
-#画出不同epsilon下的结果
+
+
 np.random.seed(0)
 epsilons=[1e-4,0.01,0.1,0.25,0.5]
 epsilon_greedy_solver_list=[EpsilonGreeedy(bandit1,epsilon=e) for e in epsilons]
@@ -92,7 +96,54 @@ for solver in epsilon_greedy_solver_list:
 
 plot_results(epsilon_greedy_solver_list,names)
 '''
-class DecayingEpsilonGREedy(Solver):
-    """ 随着时间双键的epsilon贪婪算法，继承Solver类"""
+#画出不同epsilon下的结果
+
+class DecayingEpsilonGreeedy(Solver):
+    #epsilon-greedy算法,继承Solver类
     def __init__(self,bandit,init_prob=1.0):
-      super(DecayingEpsilonGREedy,self).__init__(bandit)
+        super().__init__(bandit)#等价于Solver.__init__(self,bandit)
+        #self.epsilon=epsilon
+        #初始化拉动所有拉杆的期望奖励估值
+        self.estimates=np.array([init_prob]*self.bandit.k)#因为初始化了父类，此时的self也拥有了bandit属性，所以可以直接访问self.bandit.k
+        self.total_count=0
+    def run_one_step(self):
+        self.total_count+=1
+        self.epsilon=1./self.total_count    
+
+        if np.random.rand()<self.epsilon:
+            k=np.random.choice(self.bandit.k)
+            #或者 k=np.random.randinit(self.bandit.k) 
+        else:#以1-epslon的概率选择当前期望奖励估值最高的拉杆
+            k=np.argmax(self.estimates)
+        r=self.bandit.step(k)#执行动作，获得奖励
+        #更新期望奖励估值
+        self.estimates[k]+=1./(self.counts[k]+1)*(r-self.estimates[k])#增量式更新期望奖励估值
+        return k#注意这个r-self.estimates[k]可能为负，相当于不断逼近更真实的估计值（对k号来说）
+
+
+Decaying_ep_greedy_solver=DecayingEpsilonGreeedy(bandit1)
+Decaying_ep_greedy_solver.run(5000)
+print("total regrets " , Decaying_ep_greedy_solver.regret)
+print(Decaying_ep_greedy_solver.actions)
+plot_results([Decaying_ep_greedy_solver],['Decaying_ep_greedy'])
+
+class UCB(Solver):
+    def ___init__(self,bandit,init_prob=1.0):
+        super().__init__(bandit)
+        self.estimates=np.array([init_prob]*self.bandit.k)#一个一维的numpy向量
+        self.total_count=0
+        self.c=1.0
+    def run_one_step(self):
+        self.total_count+=1
+       #定义当前每号臂的ucb
+        ucb=self.estimates+self.c*np.sqrt(np.log(self.total_count)/(2*(self.counts+1)))
+        k=np.argmax(ucb)
+        r=self.bandit.step(k)
+        self.estimates[k]+=1./(self.counts[k]+1)*(r-self.estimates[k])#增量式更新期望奖励估值
+        return k#注意这个r-self.estimates[k]可能为负，相当于不断逼近更真实的估计值（对k号来说）
+
+upper_confidence_solver=DecayingEpsilonGreeedy(bandit1)
+upper_confidence_solver.run(5000)
+print("total regrets " , upper_confidence_solver.regret)
+print(upper_confidence_solver.actions)
+plot_results([upper_confidence_solver],['upper_confidence'])
